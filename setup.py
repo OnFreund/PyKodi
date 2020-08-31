@@ -20,7 +20,7 @@ AUTHOR = 'On Freund'
 REQUIRES_PYTHON = '>=3.7.0'
 VERSION = '0.1.0'
 
-REQUIRED = ['jsonrpc-base', 'jsonrpc-async', 'jsonrpc-websocket', 'asyncio', 'aiohttp']
+REQUIRED = ['jsonrpc-base', 'jsonrpc-async', 'jsonrpc-websocket', 'aiohttp']
 
 EXTRAS = {}
 
