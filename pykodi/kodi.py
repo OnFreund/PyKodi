@@ -306,26 +306,34 @@ class Kodi:
         """Clear default playlist (i.e. playlistid=0)."""
         await self._server.Playlist.Clear({"playlistid": 0})
 
-    async def get_artists(self):
+    async def get_artists(self, properties=None):
         """Get artists list."""
-        return await self._server.AudioLibrary.GetArtists()
-
-    async def get_albums(self, artist_id=None):
-        """Get albums list."""
-        if artist_id is None:
-            return await self._server.AudioLibrary.GetAlbums()
-
-        return await self._server.AudioLibrary.GetAlbums(
-            {"filter": {"artistid": artist_id}}
+        return await self._server.AudioLibrary.GetArtists(
+            _build_query(properties=properties)
         )
 
-    async def get_songs(self, artist_id=None):
-        """Get songs list."""
-        if artist_id is None:
-            return await self._server.AudioLibrary.GetSongs()
+    async def get_artist_details(self, artist_id=None, properties=None):
+        """Get artist details."""
+        return await self._server.AudioLibrary.GetArtistDetails(
+            _build_query(artist_id=artist_id, properties=properties)
+        )
 
+    async def get_albums(self, artist_id=None, album_id=None, properties=None):
+        """Get albums list."""
+        return await self._server.AudioLibrary.GetAlbumDetails(
+            _build_query(artist_id=artist_id, album_id=album_id, properties=properties)
+        )
+
+    async def get_album_details(self, album_id, properties=None):
+        """Get album details."""
+        return await self._server.AudioLibrary.GetAlbumDetails(
+            _build_query(album_id=album_id, properties=properties)
+        )
+
+    async def get_songs(self, artist_id=None, properties=None):
+        """Get songs list."""
         return await self._server.AudioLibrary.GetSongs(
-            {"filter": {"artistid": int(artist_id)}}
+            _build_query(artist_id=artist_id, properties=properties)
         )
 
     async def get_players(self):
@@ -339,6 +347,24 @@ class Kodi:
     def thumbnail_url(self, thumbnail):
         """Get the URL for a thumbnail."""
         return self._conn.thumbnail_url(thumbnail)
+
+
+def _build_query(**kwargs):
+    """Build query."""
+    query = {}
+    filter = {}
+    for key, val in kwargs.items():
+        if val:
+            if key in ["artist_id", "album_id"]:
+                filter.update({key: int(val)})
+
+            elif key == "properties":
+                query.update({key: val})
+
+    if filter:
+        query.update(filter)
+
+    return query
 
 
 class CannotConnectError(Exception):
