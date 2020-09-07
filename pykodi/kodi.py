@@ -27,7 +27,7 @@ class KodiConnection:
         """Initialize the object."""
         self._session = session
         self._created_session = False
-        if self._session == None:
+        if self._session is None:
             self._session = aiohttp.ClientSession()
             self._created_session = True
 
@@ -245,9 +245,8 @@ class Kodi:
         """Send seek command."""
         players = await self.get_players()
 
-        time = {}
+        time = {"milliseconds": int((position % 1) * 1000)}
 
-        time["milliseconds"] = int((position % 1) * 1000)
         position = int(position)
 
         time["seconds"] = int(position % 60)
@@ -294,7 +293,7 @@ class Kodi:
 
     async def _add_item_to_playlist(self, item):
         params = {"playlistid": 0, "item": item}
-        self._server.Playlist.Add(params)
+        await self._server.Playlist.Add(params)
 
     async def add_song_to_playlist(self, song_id):
         """Add song to default playlist (i.e. playlistid=0)."""
