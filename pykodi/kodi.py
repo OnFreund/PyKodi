@@ -320,7 +320,7 @@ class Kodi:
 
     async def get_albums(self, artist_id=None, album_id=None, properties=None):
         """Get albums list."""
-        return await self._server.AudioLibrary.GetAlbumDetails(
+        return await self._server.AudioLibrary.GetAlbums(
             _build_query(artist_id=artist_id, album_id=album_id, properties=properties)
         )
 
