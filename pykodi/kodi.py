@@ -56,12 +56,12 @@ class KodiConnection:
 
     @property
     def server(self):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def connected(self):
         """Is the server connected."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @property
     def can_subscribe(self):
@@ -121,7 +121,7 @@ class KodiWSConnection(KodiConnection):
     @property
     def connected(self):
         """Return whether websocket is connected."""
-        return self._ws_server and self._ws_server.connected
+        return self._ws_server.connected
 
     @property
     def can_subscribe(self):
@@ -134,12 +134,11 @@ class KodiWSConnection(KodiConnection):
         try:
             await self._ws_server.ws_connect()
         except jsonrpc_base.jsonrpc.TransportError as error:
-            raise CannotConnectError() from error
+            raise CannotConnectError from error
 
     async def close(self):
         """Close the connection."""
         await self._ws_server.close()
-        self._ws_server = None
         await super().close()
 
     @property
@@ -163,9 +162,9 @@ class Kodi:
             return response == "pong"
         except jsonrpc_base.jsonrpc.TransportError as error:
             if "401" in str(error):
-                raise InvalidAuthError() from error
+                raise InvalidAuthError from error
             else:
-                raise CannotConnectError() from error
+                raise CannotConnectError from error
 
     async def get_application_properties(self, properties):
         """Get value of given properties."""
