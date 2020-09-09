@@ -18,7 +18,7 @@ URL = 'https://github.com/OnFreund/PyKodi'
 EMAIL = 'onfreund@gmail.com'
 AUTHOR = 'On Freund'
 REQUIRES_PYTHON = '>=3.7.0'
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 
 REQUIRED = ['jsonrpc-base', 'jsonrpc-async', 'jsonrpc-websocket', 'aiohttp']
 
