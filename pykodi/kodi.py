@@ -320,8 +320,13 @@ class Kodi:
 
     async def get_albums(self, artist_id=None, album_id=None, properties=None):
         """Get albums list."""
+        filter = {
+            "artistid": int(artist_id),
+            "album_id": int(album_id),
+        }
+
         return await self._server.AudioLibrary.GetAlbums(
-            _build_query(artist_id=artist_id, album_id=album_id, properties=properties)
+            _build_query(filter=filter, properties=properties)
         )
 
     async def get_album_details(self, album_id, properties=None):
@@ -332,8 +337,10 @@ class Kodi:
 
     async def get_songs(self, artist_id=None, properties=None):
         """Get songs list."""
+        filter = {"artistid": int(artist_id)}
+
         return await self._server.AudioLibrary.GetSongs(
-            _build_query(artist_id=artist_id, properties=properties)
+            _build_query(filter=filter, properties=properties)
         )
 
     async def get_players(self):
@@ -352,17 +359,9 @@ class Kodi:
 def _build_query(**kwargs):
     """Build query."""
     query = {}
-    filter = {}
     for key, val in kwargs.items():
         if val:
-            if key in ["artist_id", "album_id"]:
-                filter.update({key: int(val)})
-
-            elif key == "properties":
-                query.update({key: val})
-
-    if filter:
-        query.update(filter)
+            query.update({key: val})
 
     return query
 
