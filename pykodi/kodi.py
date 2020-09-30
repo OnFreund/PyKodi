@@ -415,7 +415,6 @@ def _build_query(**kwargs):
         if val:
             query.update({key: val})
 
-    print(query)
     return query
 
 
