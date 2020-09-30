@@ -16,7 +16,7 @@ Python 3.7 and above are supported.
 
 ```python
 from pykodi import get_kodi_connection, Kodi
-kc = get_kodi_connection(<host>, <port>, <ws_port>, <username>, <password>, <ssl>, <timeout>, <session>):
+kc = get_kodi_connection(<host>, <port>, <ws_port>, <username>, <password>, <ssl>, <timeout>, <session>)
 # if ws_port is None the connection will be over HTTP, otherwise over WebSocket.
 # ssl defaults to False (only relevant if you have a proxy), timeout to 5 (seconds)
 # session is generated if not passed in
