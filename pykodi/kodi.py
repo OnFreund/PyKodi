@@ -302,6 +302,10 @@ class Kodi:
         """Add album to default playlist (i.e. playlistid=0)."""
         await self._add_item_to_playlist({"albumid": album_id})
 
+    async def add_artist_to_playlist(self, artist_id):
+        """Add album to default playlist (i.e. playlistid=0)."""
+        await self._add_item_to_playlist({"artistid": artist_id})
+
     async def clear_playlist(self):
         """Clear default playlist (i.e. playlistid=0)."""
         await self._server.Playlist.Clear({"playlistid": 0})
