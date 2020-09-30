@@ -259,24 +259,24 @@ class Kodi:
         if players:
             await self._server.Player.Seek(players[0]["playerid"], time)
 
-    async def _play_item(self, item):
+    async def play_item(self, item):
         await self._server.Player.Open({"item": item})
 
     async def play_channel(self, channel_id):
         """Play the given channel."""
-        await self._play_item({"channelid": channel_id})
+        await self.play_item({"channelid": channel_id})
 
     async def play_playlist(self, playlist_id):
         """Play the given playlist."""
-        await self._play_item({"playlistid": playlist_id})
+        await self.play_item({"playlistid": playlist_id})
 
     async def play_directory(self, directory):
         """Play the given directory."""
-        await self._play_item({"directory": directory})
+        await self.play_item({"directory": directory})
 
     async def play_file(self, file):
         """Play the given file."""
-        await self._play_item({"file": file})
+        await self.play_item({"file": file})
 
     async def set_shuffle(self, shuffle):
         """Set shuffle mode, for the first player."""
@@ -302,30 +302,97 @@ class Kodi:
         """Add album to default playlist (i.e. playlistid=0)."""
         await self._add_item_to_playlist({"albumid": album_id})
 
+    async def add_artist_to_playlist(self, artist_id):
+        """Add album to default playlist (i.e. playlistid=0)."""
+        await self._add_item_to_playlist({"artistid": artist_id})
+
     async def clear_playlist(self):
         """Clear default playlist (i.e. playlistid=0)."""
         await self._server.Playlist.Clear({"playlistid": 0})
 
-    async def get_artists(self):
+    async def get_artists(self, properties=None):
         """Get artists list."""
-        return await self._server.AudioLibrary.GetArtists()
-
-    async def get_albums(self, artist_id=None):
-        """Get albums list."""
-        if artist_id is None:
-            return await self._server.AudioLibrary.GetAlbums()
-
-        return await self._server.AudioLibrary.GetAlbums(
-            {"filter": {"artistid": artist_id}}
+        return await self._server.AudioLibrary.GetArtists(
+            _build_query(properties=properties)
         )
 
-    async def get_songs(self, artist_id=None):
+    async def get_artist_details(self, artist_id=None, properties=None):
+        """Get artist details."""
+        return await self._server.AudioLibrary.GetArtistDetails(
+            _build_query(artistid=artist_id, properties=properties)
+        )
+
+    async def get_albums(self, artist_id=None, album_id=None, properties=None):
+        """Get albums list."""
+        filter = {}
+        if artist_id:
+            filter["artistid"] = artist_id
+        if album_id:
+            filter["albumid"] = album_id
+
+        return await self._server.AudioLibrary.GetAlbums(
+            _build_query(filter=filter, properties=properties)
+        )
+
+    async def get_album_details(self, album_id, properties=None):
+        """Get album details."""
+        return await self._server.AudioLibrary.GetAlbumDetails(
+            _build_query(albumid=album_id, properties=properties)
+        )
+
+    async def get_songs(self, artist_id=None, album_id=None, properties=None):
         """Get songs list."""
-        if artist_id is None:
-            return await self._server.AudioLibrary.GetSongs()
+        filter = {}
+        if artist_id:
+            filter["artistid"] = artist_id
+        if album_id:
+            filter["albumid"] = album_id
 
         return await self._server.AudioLibrary.GetSongs(
-            {"filter": {"artistid": int(artist_id)}}
+            _build_query(filter=filter, properties=properties)
+        )
+
+    async def get_movies(self, properties=None):
+        """Get movies list."""
+        return await self._server.VideoLibrary.GetMovies(
+            _build_query(properties=properties)
+        )
+
+    async def get_seasons(self, tv_show_id, properties=None):
+        """Get seasons list."""
+        return await self._server.VideoLibrary.GetSeasons(
+            _build_query(tvshowid=tv_show_id, properties=properties)
+        )
+
+    async def get_season_details(self, season_id, properties=None):
+        """Get songs list."""
+        return await self._server.VideoLibrary.GetSeasonDetails(
+            _build_query(seasonid=season_id, properties=properties)
+        )
+
+    async def get_episodes(self, tv_show_id, season_id, properties=None):
+        """Get episodes list."""
+
+        return await self._server.VideoLibrary.GetEpisodes(
+            _build_query(tvshowid=tv_show_id, season=season_id, properties=properties)
+        )
+
+    async def get_tv_shows(self, properties=None):
+        """Get tv shows list."""
+        return await self._server.VideoLibrary.GetTVShows(
+            _build_query(properties=properties)
+        )
+
+    async def get_tv_show_details(self, tv_show_id=None, properties=None):
+        """Get songs list."""
+        return await self._server.VideoLibrary.GetTVShowDetails(
+            _build_query(tvshowid=tv_show_id, properties=properties)
+        )
+
+    async def get_channels(self, channel_group_id, properties=None):
+        """Get channels list."""
+        return await self._server.PVR.GetChannels(
+            _build_query(channelgroupid=channel_group_id, properties=properties)
         )
 
     async def get_players(self):
@@ -339,6 +406,16 @@ class Kodi:
     def thumbnail_url(self, thumbnail):
         """Get the URL for a thumbnail."""
         return self._conn.thumbnail_url(thumbnail)
+
+
+def _build_query(**kwargs):
+    """Build query."""
+    query = {}
+    for key, val in kwargs.items():
+        if val:
+            query.update({key: val})
+
+    return query
 
 
 class CannotConnectError(Exception):
