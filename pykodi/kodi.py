@@ -259,24 +259,24 @@ class Kodi:
         if players:
             await self._server.Player.Seek(players[0]["playerid"], time)
 
-    async def _play_item(self, item):
+    async def play_item(self, item):
         await self._server.Player.Open({"item": item})
 
     async def play_channel(self, channel_id):
         """Play the given channel."""
-        await self._play_item({"channelid": channel_id})
+        await self.play_item({"channelid": channel_id})
 
     async def play_playlist(self, playlist_id):
         """Play the given playlist."""
-        await self._play_item({"playlistid": playlist_id})
+        await self.play_item({"playlistid": playlist_id})
 
     async def play_directory(self, directory):
         """Play the given directory."""
-        await self._play_item({"directory": directory})
+        await self.play_item({"directory": directory})
 
     async def play_file(self, file):
         """Play the given file."""
-        await self._play_item({"file": file})
+        await self.play_item({"file": file})
 
     async def set_shuffle(self, shuffle):
         """Set shuffle mode, for the first player."""
