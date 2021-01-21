@@ -2,7 +2,7 @@
 import aiohttp
 import urllib
 
-# import asyncio
+import asyncio
 import jsonrpc_base
 import jsonrpc_async
 import jsonrpc_websocket
@@ -133,7 +133,7 @@ class KodiWSConnection(KodiConnection):
             return
         try:
             await self._ws_server.ws_connect()
-        except jsonrpc_base.jsonrpc.TransportError as error:
+        except (jsonrpc_base.jsonrpc.TransportError, asyncio.exceptions.CancelledError) as error:
             raise CannotConnectError from error
 
     async def close(self):
