@@ -358,6 +358,12 @@ class Kodi:
             _build_query(properties=properties)
         )
 
+    async def get_movie_details(self, movie_id, properties=None):
+        """Get movie details."""
+        return await self._server.VideoLibrary.GetMovieDetails(
+            _build_query(movieid=movie_id, properties=properties)
+        )
+
     async def get_seasons(self, tv_show_id, properties=None):
         """Get seasons list."""
         return await self._server.VideoLibrary.GetSeasons(
