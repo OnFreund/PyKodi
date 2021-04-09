@@ -133,7 +133,10 @@ class KodiWSConnection(KodiConnection):
             return
         try:
             await self._ws_server.ws_connect()
-        except (jsonrpc_base.jsonrpc.TransportError, asyncio.exceptions.CancelledError) as error:
+        except (
+            jsonrpc_base.jsonrpc.TransportError,
+            asyncio.exceptions.CancelledError,
+        ) as error:
             raise CannotConnectError from error
 
     async def close(self):
@@ -312,13 +315,13 @@ class Kodi:
     async def get_artists(self, properties=None):
         """Get artists list."""
         return await self._server.AudioLibrary.GetArtists(
-            _build_query(properties=properties)
+            **_build_query(properties=properties)
         )
 
     async def get_artist_details(self, artist_id=None, properties=None):
         """Get artist details."""
         return await self._server.AudioLibrary.GetArtistDetails(
-            _build_query(artistid=artist_id, properties=properties)
+            **_build_query(artistid=artist_id, properties=properties)
         )
 
     async def get_albums(self, artist_id=None, album_id=None, properties=None):
@@ -330,13 +333,13 @@ class Kodi:
             filter["albumid"] = album_id
 
         return await self._server.AudioLibrary.GetAlbums(
-            _build_query(filter=filter, properties=properties)
+            **_build_query(filter=filter, properties=properties)
         )
 
     async def get_album_details(self, album_id, properties=None):
         """Get album details."""
         return await self._server.AudioLibrary.GetAlbumDetails(
-            _build_query(albumid=album_id, properties=properties)
+            **_build_query(albumid=album_id, properties=properties)
         )
 
     async def get_songs(self, artist_id=None, album_id=None, properties=None):
@@ -348,56 +351,56 @@ class Kodi:
             filter["albumid"] = album_id
 
         return await self._server.AudioLibrary.GetSongs(
-            _build_query(filter=filter, properties=properties)
+            **_build_query(filter=filter, properties=properties)
         )
 
     async def get_movies(self, properties=None):
         """Get movies list."""
         return await self._server.VideoLibrary.GetMovies(
-            _build_query(properties=properties)
+            **_build_query(properties=properties)
         )
 
     async def get_movie_details(self, movie_id, properties=None):
         """Get movie details."""
         return await self._server.VideoLibrary.GetMovieDetails(
-            _build_query(movieid=movie_id, properties=properties)
+            **_build_query(movieid=movie_id, properties=properties)
         )
 
     async def get_seasons(self, tv_show_id, properties=None):
         """Get seasons list."""
         return await self._server.VideoLibrary.GetSeasons(
-            _build_query(tvshowid=tv_show_id, properties=properties)
+            **_build_query(tvshowid=tv_show_id, properties=properties)
         )
 
     async def get_season_details(self, season_id, properties=None):
         """Get songs list."""
         return await self._server.VideoLibrary.GetSeasonDetails(
-            _build_query(seasonid=season_id, properties=properties)
+            **_build_query(seasonid=season_id, properties=properties)
         )
 
     async def get_episodes(self, tv_show_id, season_id, properties=None):
         """Get episodes list."""
 
         return await self._server.VideoLibrary.GetEpisodes(
-            _build_query(tvshowid=tv_show_id, season=season_id, properties=properties)
+            **_build_query(tvshowid=tv_show_id, season=season_id, properties=properties)
         )
 
     async def get_tv_shows(self, properties=None):
         """Get tv shows list."""
         return await self._server.VideoLibrary.GetTVShows(
-            _build_query(properties=properties)
+            **_build_query(properties=properties)
         )
 
     async def get_tv_show_details(self, tv_show_id=None, properties=None):
         """Get songs list."""
         return await self._server.VideoLibrary.GetTVShowDetails(
-            _build_query(tvshowid=tv_show_id, properties=properties)
+            **_build_query(tvshowid=tv_show_id, properties=properties)
         )
 
     async def get_channels(self, channel_group_id, properties=None):
         """Get channels list."""
         return await self._server.PVR.GetChannels(
-            _build_query(channelgroupid=channel_group_id, properties=properties)
+            **_build_query(channelgroupid=channel_group_id, properties=properties)
         )
 
     async def get_players(self):
