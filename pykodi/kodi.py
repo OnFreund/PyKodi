@@ -133,10 +133,7 @@ class KodiWSConnection(KodiConnection):
             return
         try:
             await self._ws_server.ws_connect()
-        except (
-            jsonrpc_base.jsonrpc.TransportError,
-            asyncio.exceptions.CancelledError,
-        ) as error:
+        except (jsonrpc_base.jsonrpc.TransportError, asyncio.exceptions.CancelledError) as error:
             raise CannotConnectError from error
 
     async def close(self):
