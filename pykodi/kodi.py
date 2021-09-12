@@ -231,7 +231,7 @@ class Kodi:
             if direction == "previous":
                 # First seek to position 0. Kodi goes to the beginning of the
                 # current track if the current track is not at the beginning.
-                await self._server.Player.Seek(players[0]["playerid"], 0)
+                await self._server.Player.Seek(players[0]["playerid"], {"percentage": 0})
 
             await self._server.Player.GoTo(players[0]["playerid"], direction)
 
@@ -260,7 +260,7 @@ class Kodi:
         time["hours"] = int(position)
 
         if players:
-            await self._server.Player.Seek(players[0]["playerid"], time)
+            await self._server.Player.Seek(players[0]["playerid"], {"time": time})
 
     async def play_item(self, item):
         await self._server.Player.Open(**{"item": item})
