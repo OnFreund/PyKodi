@@ -310,7 +310,7 @@ class Kodi:
 
     async def clear_playlist(self):
         """Clear default playlist (i.e. playlistid=0)."""
-        await self._server.Playlist.Clear({"playlistid": 0})
+        await self._server.Playlist.Clear(**{"playlistid": 0})
 
     async def get_artists(self, properties=None):
         """Get artists list."""
