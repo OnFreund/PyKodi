@@ -418,12 +418,7 @@ class Kodi:
 
 def _build_query(**kwargs):
     """Build query."""
-    query = {}
-    for key, val in kwargs.items():
-        if val:
-            query.update({key: val})
-
-    return query
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 class CannotConnectError(Exception):
