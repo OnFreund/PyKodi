@@ -265,7 +265,7 @@ class Kodi:
             await self._server.Player.Seek(players[0]["playerid"], {"time": time})
 
     async def play_item(self, item):
-        await self._server.Player.Open(item=item)
+        await self._server.Player.Open(**{"item": item})
 
     async def play_channel(self, channel_id):
         """Play the given channel."""
@@ -288,7 +288,7 @@ class Kodi:
         players = await self.get_players()
         if players:
             await self._server.Player.SetShuffle(
-                playerid=players[0]["playerid"], shuffle=shuffle
+                **{"playerid": players[0]["playerid"], "shuffle": shuffle}
             )
 
     async def call_method(self, method, **kwargs):
@@ -298,7 +298,7 @@ class Kodi:
         return await getattr(self._server, method)(**kwargs)
 
     async def _add_item_to_playlist(self, item):
-        await self._server.Playlist.Add(playlistid=0, item=item)
+        await self._server.Playlist.Add(**{playlistid: 0, item: item})
 
     async def add_song_to_playlist(self, song_id):
         """Add song to default playlist (i.e. playlistid=0)."""
@@ -314,7 +314,7 @@ class Kodi:
 
     async def clear_playlist(self):
         """Clear default playlist (i.e. playlistid=0)."""
-        await self._server.Playlist.Clear(playlistid=0)
+        await self._server.Playlist.Clear(**{playlistid: 0})
 
     async def get_artists(self, properties=None):
         """Get artists list."""
