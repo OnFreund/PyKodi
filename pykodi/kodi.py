@@ -231,7 +231,9 @@ class Kodi:
             if direction == "previous":
                 # First seek to position 0. Kodi goes to the beginning of the
                 # current track if the current track is not at the beginning.
-                await self._server.Player.Seek(players[0]["playerid"], {"percentage": 0})
+                await self._server.Player.Seek(
+                    players[0]["playerid"], {"percentage": 0}
+                )
 
             await self._server.Player.GoTo(players[0]["playerid"], direction)
 
@@ -291,6 +293,8 @@ class Kodi:
 
     async def call_method(self, method, **kwargs):
         """Run Kodi JSONRPC API method with params."""
+        if "." not in method or len(method.split(".")) != 2:
+            raise ValueError(f"Invalid method: {method}")
         return await getattr(self._server, method)(**kwargs)
 
     async def _add_item_to_playlist(self, item):
