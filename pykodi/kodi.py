@@ -6,6 +6,7 @@ import asyncio
 import jsonrpc_base
 import jsonrpc_async
 import jsonrpc_websocket
+from rapidfuzz import fuzz, process, utils
 
 
 def get_kodi_connection(
@@ -410,6 +411,25 @@ class Kodi:
     async def get_players(self):
         """Return the active player objects."""
         return await self._server.Player.GetActivePlayers()
+
+    async def filter_media(self, media, search_query=None, score_cutoff=80):
+        """Filter the provided media list by the search query. Return the filtered list."""
+
+        if search_query is None:
+            return media
+
+        media_labels = [i["label"] for i in media]
+        matching_media_indices = process.extract(
+            search_query,
+            media_labels,
+            scorer=fuzz.WRatio,
+            processor=utils.default_process,
+            score_cutoff=score_cutoff
+        )
+
+        filtered_media = [{**media[idx], 'fuzz_score':fuzz_score} for (label, fuzz_score, idx) in matching_media_indices]
+
+        return filtered_media
 
     async def send_notification(self, title, message, icon="info", displaytime=10000):
         """Display on-screen message."""
