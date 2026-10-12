@@ -3,9 +3,16 @@ import aiohttp
 import urllib
 
 import asyncio
+import inspect
+import logging
+from typing import Any, Callable, Dict, List
 import jsonrpc_base
 import jsonrpc_async
 import jsonrpc_websocket
+
+_LOGGER = logging.getLogger(__name__)
+
+NotificationCallback = Callable[[str, Any], Any]
 
 
 def get_kodi_connection(
@@ -67,6 +74,12 @@ class KodiConnection:
     def can_subscribe(self):
         return False
 
+    def subscribe(
+        self, method: str, callback: NotificationCallback
+    ) -> Callable[[], None]:
+        """Subscribe to a Kodi notification."""
+        raise NotImplementedError("This connection does not receive notifications")
+
     def thumbnail_url(self, thumbnail):
         """Get the URL for a thumbnail."""
         if thumbnail is None:
@@ -117,6 +130,7 @@ class KodiWSConnection(KodiConnection):
         ws_url = f"{ws_protocol}://{host}:{ws_port}/jsonrpc"
 
         self._ws_server = jsonrpc_websocket.Server(ws_url, **self._kwargs)
+        self._subscriptions: Dict[str, List[NotificationCallback]] = {}
 
     @property
     def connected(self):
@@ -126,6 +140,52 @@ class KodiWSConnection(KodiConnection):
     @property
     def can_subscribe(self):
         return True
+
+    def subscribe(
+        self, method: str, callback: NotificationCallback
+    ) -> Callable[[], None]:
+        """Subscribe to a Kodi notification, for example "Player.OnPlay".
+
+        The callback is called with the sender and the data of the
+        notification, and it can be a coroutine function. More than one
+        callback can subscribe to the same notification. Returns a function
+        that removes the subscription.
+
+        Subscriptions stay active across reconnects, so subscribe only once
+        per callback. Do not assign a handler on ``server`` for a
+        notification that is also subscribed here, because the two would
+        replace each other. Notification names with a part starting with an
+        underscore cannot be subscribed to.
+        """
+        callbacks = self._subscriptions.get(method)
+        if callbacks is None:
+            callbacks = self._subscriptions[method] = []
+            *path, name = method.split(".")
+            target = self._ws_server
+            for part in path:
+                target = getattr(target, part)
+            setattr(target, name, self._dispatcher(method))
+        callbacks.append(callback)
+
+        def unsubscribe() -> None:
+            if callback in callbacks:
+                callbacks.remove(callback)
+
+        return unsubscribe
+
+    def _dispatcher(self, method: str) -> Callable[..., Any]:
+        """Return a handler that calls every callback subscribed to method."""
+
+        async def dispatch(sender: str, data: Any) -> None:
+            for callback in list(self._subscriptions[method]):
+                try:
+                    result = callback(sender, data)
+                    if inspect.isawaitable(result):
+                        await result
+                except Exception:
+                    _LOGGER.exception("Error in callback for %s", method)
+
+        return dispatch
 
     async def connect(self):
         """Connect to kodi over websocket."""
