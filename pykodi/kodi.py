@@ -9,6 +9,54 @@ from typing import Any, Callable, Dict, List
 import jsonrpc_base
 import jsonrpc_async
 import jsonrpc_websocket
+import os
+import re
+
+_STREAM_INFO_PROPERTIES = [
+    "currentvideostream",
+    "videostreams",
+    "currentaudiostream",
+    "audiostreams",
+]
+
+_STREAM_INFO_LABELS = [
+    "VideoPlayer.HdrType",
+    "VideoPlayer.HdrDetail",
+    "VideoPlayer.VideoResolution",
+    "VideoPlayer.VideoAspect",
+    "System.SupportedHDRTypes",
+    "System.ScreenResolution",
+    "System.ScreenWidth",
+    "System.ScreenHeight",
+    "Player.Filename",
+]
+
+# Cover art embedded in a container shows up as a video stream with these codecs.
+_COVER_ART_CODECS = ("mjpeg", "png")
+
+# Release tags in file names. A tag starts after anything but a letter or digit
+# and ends before one, except "HDR10+", which ends with the plus sign.
+_HDR_HINT_PATTERNS = (
+    ("dolbyvision", r"(?:dovi|dv|dolby[ ._-]?vision)(?![a-z0-9])"),
+    ("hdr10plus", r"hdr10(?:(?:plus|p)(?![a-z0-9])|\+)"),
+    ("hdr10", r"hdr(?:10)?(?![a-z0-9+])"),
+    ("hlg", r"hlg(?![a-z0-9])"),
+)
+_HDR_HINTS = tuple(
+    (hint, re.compile(r"(?<![a-z0-9])" + pattern, re.IGNORECASE))
+    for hint, pattern in _HDR_HINT_PATTERNS
+)
+
+
+def _hdr_hints(filename):
+    """Return the HDR formats named in a file name.
+
+    Kodi 21 reports HDR10+ as hdr10 and does not report the HDR10 base layer
+    of a Dolby Vision stream, but release names usually contain both. The
+    extension is ignored, so a raw DV camera file (.dv) gives no hint.
+    """
+    name = os.path.splitext(filename or "")[0]
+    return [hint for hint, pattern in _HDR_HINTS if pattern.search(name)]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -242,6 +290,30 @@ class Kodi:
         return (await self._server.Player.GetItem(player["playerid"], properties))[
             "item"
         ]
+
+    async def get_stream_info(self, player):
+        """Get the video and audio streams, HDR and display details.
+
+        Returns the stream properties of the player, the raw HDR, resolution
+        and display info labels under "infolabels" and the HDR formats named
+        in the file name under "hdrhints". Info labels unknown to the Kodi
+        version are returned as empty strings. Embedded cover art is left out
+        of "videostreams" unless it is the current video stream.
+        """
+        info, labels = await asyncio.gather(
+            self.get_player_properties(player, _STREAM_INFO_PROPERTIES),
+            self._server.XBMC.GetInfoLabels(_STREAM_INFO_LABELS),
+        )
+        current = info.get("currentvideostream") or {}
+        info["videostreams"] = [
+            stream
+            for stream in info.get("videostreams") or []
+            if stream.get("codec") not in _COVER_ART_CODECS
+            or stream.get("index") == current.get("index")
+        ]
+        info["infolabels"] = labels
+        info["hdrhints"] = _hdr_hints(labels.get("Player.Filename"))
+        return info
 
     async def volume_up(self):
         """Send volume up command."""
