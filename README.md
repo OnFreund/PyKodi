@@ -33,4 +33,12 @@ await kodi.play()
 await kodi.volume_up()
 await kodi.pause()
 ...
+
+# over WebSocket you can subscribe to Kodi notifications
+def on_play(sender, data):
+    print(data["item"])
+
+unsubscribe = kc.subscribe("Player.OnPlay", on_play)
+...
+unsubscribe()
 ```
