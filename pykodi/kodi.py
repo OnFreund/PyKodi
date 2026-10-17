@@ -5,7 +5,7 @@ import urllib
 import asyncio
 import inspect
 import logging
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 import jsonrpc_base
 import jsonrpc_async
 import jsonrpc_websocket
@@ -190,6 +190,8 @@ class KodiWSConnection(KodiConnection):
 
         self._ws_server = jsonrpc_websocket.Server(ws_url, **self._kwargs)
         self._subscriptions: Dict[str, List[NotificationCallback]] = {}
+        self._ws_task: Optional["asyncio.Task[None]"] = None
+        self._timeout = timeout
 
     @property
     def connected(self):
@@ -250,23 +252,56 @@ class KodiWSConnection(KodiConnection):
         """Connect to kodi over websocket."""
         if self.connected:
             return
+        previous = self._ws_task
+        if previous is not None:
+            # Abort a read loop that is still closing an earlier connection
+            previous.cancel()
         try:
-            await self._ws_server.ws_connect()
-        except (
-            jsonrpc_base.jsonrpc.TransportError,
-            asyncio.exceptions.CancelledError,
-        ) as error:
+            await asyncio.wait_for(self._ws_connect(), self._timeout)
+        except (jsonrpc_base.jsonrpc.TransportError, asyncio.TimeoutError) as error:
             raise CannotConnectError from error
 
+    async def _ws_connect(self) -> None:
+        """Open the websocket and keep its read loop task."""
+        task = await self._ws_server.ws_connect()
+        # Store the read loop before anything else can run, so close() sees it
+        self._ws_task = task
+        task.add_done_callback(_ws_loop_done)
+
     async def close(self):
-        """Close the connection."""
-        await self._ws_server.close()
+        """Close the connection.
+
+        Waits at most ``timeout`` seconds for the connection to close, then
+        aborts it. With ``timeout=None`` it waits indefinitely.
+        """
+        task = self._ws_task
+        try:
+            await asyncio.wait_for(self._close_websocket(task), self._timeout)
+        except asyncio.TimeoutError:
+            if task is not None:
+                task.cancel()
+                await asyncio.wait([task])
         await super().close()
+
+    async def _close_websocket(self, task: Optional["asyncio.Task[None]"]) -> None:
+        """Close the websocket and wait for its read loop to end."""
+        await self._ws_server.close()
+        if task is not None:
+            await asyncio.wait([task])
 
     @property
     def server(self):
         """Active server for json-rpc requests."""
         return self._ws_server
+
+
+def _ws_loop_done(task: "asyncio.Task[None]") -> None:
+    """Retrieve the exception that ended a websocket read loop."""
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        _LOGGER.debug("Websocket connection to Kodi lost", exc_info=error)
 
 
 class Kodi:
