@@ -75,6 +75,17 @@ def get_kodi_connection(
         )
 
 
+def _url_host(host):
+    """Return a host formatted for use in a URL.
+
+    Bare IPv6 literals must be bracketed in URLs (RFC 3986 section 3.2.2),
+    otherwise their colons are parsed as port separators.
+    """
+    if ":" in host and not host.startswith("["):
+        return f"[{host}]"
+    return host
+
+
 class KodiConnection:
     """A connection to Kodi interface."""
 
@@ -96,7 +107,7 @@ class KodiConnection:
 
         http_protocol = "https" if ssl else "http"
 
-        self._image_url = f"{http_protocol}://{image_auth_string}{host}:{port}/image"
+        self._image_url = f"{http_protocol}://{image_auth_string}{_url_host(host)}:{port}/image"
 
     async def connect(self):
         """Connect to kodi."""
@@ -147,7 +158,7 @@ class KodiHTTPConnection(KodiConnection):
 
         http_protocol = "https" if ssl else "http"
 
-        http_url = f"{http_protocol}://{host}:{port}/jsonrpc"
+        http_url = f"{http_protocol}://{_url_host(host)}:{port}/jsonrpc"
 
         self._http_server = jsonrpc_async.Server(http_url, **self._kwargs)
 
@@ -175,7 +186,7 @@ class KodiWSConnection(KodiConnection):
         super().__init__(host, port, username, password, ssl, timeout, session)
 
         ws_protocol = "wss" if ssl else "ws"
-        ws_url = f"{ws_protocol}://{host}:{ws_port}/jsonrpc"
+        ws_url = f"{ws_protocol}://{_url_host(host)}:{ws_port}/jsonrpc"
 
         self._ws_server = jsonrpc_websocket.Server(ws_url, **self._kwargs)
         self._subscriptions: Dict[str, List[NotificationCallback]] = {}
