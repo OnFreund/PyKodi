@@ -41,6 +41,14 @@ def on_play(sender, data):
 unsubscribe = kc.subscribe("Player.OnPlay", on_play)
 ...
 unsubscribe()
+
+# and get a call when the connection is lost, but not after close()
+def on_disconnect(error):
+    print("Connection to Kodi lost:", error)  # usually None, a network drop included
+
+remove = kc.on_disconnect(on_disconnect)
+...
+remove()
 ```
 
 ### Stream and HDR details
