@@ -3,6 +3,7 @@ import aiohttp
 import urllib
 
 import asyncio
+import base64
 import inspect
 import logging
 from typing import Any, Callable, Dict, List, Optional
@@ -86,6 +87,17 @@ def _url_host(host):
     return host
 
 
+def _basic_auth_header(username, password):
+    """Return the value of an HTTP Basic Authorization header.
+
+    The credentials are encoded as UTF-8, which is how Kodi compares them.
+    """
+    if ":" in username:
+        raise ValueError('A ":" is not allowed in the username (RFC 7617)')
+    credentials = f"{username}:{password}".encode("utf-8")
+    return "Basic " + base64.b64encode(credentials).decode("ascii")
+
+
 class KodiConnection:
     """A connection to Kodi interface."""
 
@@ -100,7 +112,11 @@ class KodiConnection:
         self._kwargs = {"timeout": timeout, "session": self._session}
 
         if username is not None:
-            self._kwargs["auth"] = aiohttp.BasicAuth(username, password)
+            if password is None:
+                password = ""
+            self._kwargs["headers"] = {
+                "Authorization": _basic_auth_header(username, password)
+            }
             image_auth_string = f"{username}:{password}@"
         else:
             image_auth_string = ""
