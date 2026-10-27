@@ -4,9 +4,10 @@ import urllib
 
 import asyncio
 import base64
+import functools
 import inspect
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set
 import jsonrpc_base
 import jsonrpc_async
 import jsonrpc_websocket
@@ -62,6 +63,7 @@ def _hdr_hints(filename):
 _LOGGER = logging.getLogger(__name__)
 
 NotificationCallback = Callable[[str, Any], Any]
+DisconnectCallback = Callable[[Optional[BaseException]], Any]
 
 
 def get_kodi_connection(
@@ -155,6 +157,13 @@ class KodiConnection:
         """Subscribe to a Kodi notification."""
         raise NotImplementedError("This connection does not receive notifications")
 
+    def on_disconnect(self, callback: DisconnectCallback) -> Callable[[], None]:
+        """Call a callback when the connection to Kodi is lost.
+
+        Available when can_subscribe is True.
+        """
+        raise NotImplementedError("This connection does not stay open")
+
     def thumbnail_url(self, thumbnail):
         """Get the URL for a thumbnail."""
         if thumbnail is None:
@@ -208,6 +217,11 @@ class KodiWSConnection(KodiConnection):
         self._subscriptions: Dict[str, List[NotificationCallback]] = {}
         self._ws_task: Optional["asyncio.Task[None]"] = None
         self._timeout = timeout
+        self._disconnect_callbacks: List[DisconnectCallback] = []
+        self._disconnect_tasks: Set["asyncio.Task[None]"] = set()
+        # Incremented by close(), so a lost connection can tell it was closed
+        self._close_count = 0
+        self._connect_lock: Optional[asyncio.Lock] = None
 
     @property
     def connected(self):
@@ -264,25 +278,86 @@ class KodiWSConnection(KodiConnection):
 
         return dispatch
 
+    def on_disconnect(self, callback: DisconnectCallback) -> Callable[[], None]:
+        """Call a callback when the connection to Kodi is lost.
+
+        The callback gets the exception that ended the connection, for example
+        a TransportError for a malformed message, or None otherwise. A network
+        drop gives None as well, so None does not mean that Kodi shut down
+        cleanly. It is called once the connection has finished closing, and it
+        can be a coroutine function. It is not called for a connection closed
+        with close(), and callbacks that did not run yet are skipped once
+        close() is called, while a callback that is already running is not
+        stopped. Callbacks are called one after another, so one that awaits
+        delays the next ones. A loss is not reported either if connect() is
+        called before the lost connection finished closing. The callback stays
+        registered across reconnects, so register it only once. Returns a
+        function that removes it.
+        """
+        self._disconnect_callbacks.append(callback)
+
+        def remove() -> None:
+            if callback in self._disconnect_callbacks:
+                self._disconnect_callbacks.remove(callback)
+
+        return remove
+
     async def connect(self):
-        """Connect to kodi over websocket."""
-        if self.connected:
-            return
-        previous = self._ws_task
-        if previous is not None:
-            # Abort a read loop that is still closing an earlier connection
-            previous.cancel()
-        try:
-            await asyncio.wait_for(self._ws_connect(), self._timeout)
-        except (jsonrpc_base.jsonrpc.TransportError, asyncio.TimeoutError) as error:
-            raise CannotConnectError from error
+        """Connect to kodi over websocket.
+
+        Concurrent calls open a single connection.
+        """
+        # Created here, so that it belongs to the running event loop
+        if self._connect_lock is None:
+            self._connect_lock = asyncio.Lock()
+        async with self._connect_lock:
+            if self.connected:
+                return
+            previous = self._ws_task
+            if previous is not None:
+                # Abort a read loop that is still closing an earlier connection
+                previous.cancel()
+            try:
+                await asyncio.wait_for(self._ws_connect(), self._timeout)
+            except (jsonrpc_base.jsonrpc.TransportError, asyncio.TimeoutError) as error:
+                raise CannotConnectError from error
 
     async def _ws_connect(self) -> None:
         """Open the websocket and keep its read loop task."""
+        close_count = self._close_count
         task = await self._ws_server.ws_connect()
         # Store the read loop before anything else can run, so close() sees it
         self._ws_task = task
-        task.add_done_callback(_ws_loop_done)
+        if self.connected:
+            # A close() during the handshake does not stop this connection
+            close_count = self._close_count
+        task.add_done_callback(functools.partial(self._loop_done, close_count))
+
+    def _loop_done(self, close_count: int, task: "asyncio.Task[None]") -> None:
+        """Call the disconnect callbacks if the connection was lost."""
+        _ws_loop_done(task)
+        if task.cancelled() or not self._disconnect_callbacks:
+            return
+        dispatch = asyncio.ensure_future(
+            self._dispatch_disconnect(task.exception(), close_count)
+        )
+        # Keep a reference, so the task is not garbage collected while running
+        self._disconnect_tasks.add(dispatch)
+        dispatch.add_done_callback(self._disconnect_tasks.discard)
+
+    async def _dispatch_disconnect(
+        self, error: Optional[BaseException], close_count: int
+    ) -> None:
+        """Call every disconnect callback until close() is called."""
+        for callback in list(self._disconnect_callbacks):
+            if close_count != self._close_count:
+                return
+            try:
+                result = callback(error)
+                if inspect.isawaitable(result):
+                    await result
+            except Exception:
+                _LOGGER.exception("Error in disconnect callback")
 
     async def close(self):
         """Close the connection.
@@ -290,6 +365,7 @@ class KodiWSConnection(KodiConnection):
         Waits at most ``timeout`` seconds for the connection to close, then
         aborts it. With ``timeout=None`` it waits indefinitely.
         """
+        self._close_count += 1
         task = self._ws_task
         try:
             await asyncio.wait_for(self._close_websocket(task), self._timeout)
